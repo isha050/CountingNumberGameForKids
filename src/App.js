@@ -88,6 +88,14 @@ function App() {
     setCurrentScreen('profilePicker');
   };
 
+  const goToParentNotes = () => {
+    setCurrentScreen('parentNotes');
+  };
+
+  const goToViewNotes = () => {
+    setCurrentScreen('viewNotes');
+  };
+
   if (showWelcome) {
     return <WelcomeScreen onStart={() => {
       setShowWelcome(false);
@@ -119,7 +127,27 @@ function App() {
       <ProfileDashboard 
         profile={selectedProfile}
         onStartGame={() => setCurrentScreen('gameSelect')}
+        onParentNotes={goToParentNotes}
+        onViewNotes={goToViewNotes}
         onBack={backToProfiles}
+      />
+    );
+  }
+
+  if (currentScreen === 'parentNotes') {
+    return (
+      <ParentNotesForm
+        profile={selectedProfile}
+        onBack={backToDashboard}
+      />
+    );
+  }
+
+  if (currentScreen === 'viewNotes') {
+    return (
+      <ViewNotes
+        profile={selectedProfile}
+        onBack={backToDashboard}
       />
     );
   }
@@ -250,7 +278,7 @@ function CreateProfile({ onSave, onBack }) {
   );
 }
 
-function ProfileDashboard({ profile, onStartGame, onBack }) {
+function ProfileDashboard({ profile, onStartGame, onParentNotes, onViewNotes, onBack }) {
   const gameNames = {
     counting: 'Counting Numbers',
     tapCount: 'Tap to Count',
@@ -280,9 +308,422 @@ function ProfileDashboard({ profile, onStartGame, onBack }) {
         </div>
       </div>
       
-      <button onClick={onStartGame} style={styles.startGameButton}>
-        Start Game
+      <div style={styles.dashboardButtonsContainer}>
+        <button onClick={onStartGame} style={styles.startGameButton}>
+          Start Game
+        </button>
+        
+        <button onClick={onParentNotes} style={styles.parentNotesButton}>
+           Add Parent Note
+        </button>
+        
+        <button onClick={onViewNotes} style={styles.viewNotesButton}>
+           View All Notes
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ParentNotesForm({ profile, onBack }) {
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [mood, setMood] = useState('😊');
+  const [activitiesCompleted, setActivitiesCompleted] = useState([]);
+  const [timeSpent, setTimeSpent] = useState('');
+  const [notes, setNotes] = useState('');
+  const [challenges, setChallenges] = useState([]);
+  const [achievements, setAchievements] = useState('');
+  
+  const moodOptions = ['😊', '😐', '😢', '😠'];
+  
+  const activityOptions = [
+    { id: 'counting', name: 'Counting Numbers' },
+    { id: 'tapCount', name: 'Tap to Count' },
+    { id: 'matchNumber', name: 'Match the Number' },
+    { id: 'missingNumber', name: 'Missing Number' }
+  ];
+  
+  const challengeOptions = [
+    'Concentration',
+    'Following Instructions',
+    'Motor Skills',
+    'Patience',
+    'Frustration Management',
+    'Attention Span'
+  ];
+  
+  const toggleActivity = (activityId) => {
+    if (activitiesCompleted.includes(activityId)) {
+      setActivitiesCompleted(activitiesCompleted.filter(id => id !== activityId));
+    } else {
+      setActivitiesCompleted([...activitiesCompleted, activityId]);
+    }
+  };
+  
+  const toggleChallenge = (challenge) => {
+    if (challenges.includes(challenge)) {
+      setChallenges(challenges.filter(c => c !== challenge));
+    } else {
+      setChallenges([...challenges, challenge]);
+    }
+  };
+  
+  const handleSave = () => {
+    // Validation
+    if (!timeSpent || timeSpent <= 0) {
+      alert('Please enter time spent (must be greater than 0)');
+      return;
+    }
+    
+    if (activitiesCompleted.length === 0) {
+      alert('Please select at least one activity completed');
+      return;
+    }
+    
+    // Create note object
+    const newNote = {
+      id: Date.now().toString(),
+      profileId: profile.id,
+      date,
+      mood,
+      activitiesCompleted,
+      timeSpent: parseInt(timeSpent),
+      notes: notes.trim(),
+      challenges,
+      achievements: achievements.trim(),
+      createdAt: new Date().toISOString()
+    };
+    
+    // Save to localStorage (simulating database)
+    try {
+      const existingNotes = JSON.parse(localStorage.getItem('parentNotes') || '[]');
+      const updatedNotes = [...existingNotes, newNote];
+      localStorage.setItem('parentNotes', JSON.stringify(updatedNotes));
+      
+      alert('Note saved successfully! ✅');
+      
+      // Reset form
+      setDate(new Date().toISOString().split('T')[0]);
+      setMood('😊');
+      setActivitiesCompleted([]);
+      setTimeSpent('');
+      setNotes('');
+      setChallenges([]);
+      setAchievements('');
+      
+      // Go back after a short delay
+      setTimeout(() => {
+        onBack();
+      }, 1000);
+      
+    } catch (e) {
+      console.error('Failed to save note:', e);
+      alert('Failed to save note. Please try again.');
+    }
+  };
+  
+  return (
+  <div style={styles.fullScreenContainer}>
+    <button onClick={onBack} style={styles.backButton}>← Back</button>
+    
+    <h1 style={styles.pageTitle}>Parent Notes for {profile.name}</h1>
+    
+    <form 
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSave();
+      }}
+      style={styles.formContainer}
+    >
+      
+      {/* Date Picker */}
+      <div style={styles.formGroup}>
+        <label style={styles.formLabel}>📅 Date</label>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          style={styles.formInput}
+          max={new Date().toISOString().split('T')[0]}
+          required
+        />
+      </div>
+      
+      {/* Mood Selector */}
+      <div style={styles.formGroup}>
+        <label style={styles.formLabel}>😊 Child's Mood</label>
+        <div style={styles.moodGrid}>
+          {moodOptions.map(moodEmoji => (
+            <button
+              key={moodEmoji}
+              type="button"
+              onClick={() => setMood(moodEmoji)}
+              style={{
+                ...styles.moodOption,
+                backgroundColor: mood === moodEmoji ? '#FFB7B2' : '#F0F4F8',
+                transform: mood === moodEmoji ? 'scale(1.15)' : 'scale(1)',
+                boxShadow: mood === moodEmoji 
+                  ? '0 6px 20px rgba(255, 183, 178, 0.4)' 
+                  : '0 2px 8px rgba(0,0,0,0.1)'
+              }}
+            >
+              {moodEmoji}
+            </button>
+          ))}
+        </div>
+      </div>
+      
+      {/* Activities Completed Checklist */}
+      <div style={styles.formGroup}>
+        <label style={styles.formLabel}>✅ Activities Completed</label>
+        <div style={styles.checkboxContainer}>
+          {activityOptions.map(activity => (
+            <label key={activity.id} style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={activitiesCompleted.includes(activity.id)}
+                onChange={() => toggleActivity(activity.id)}
+                style={styles.checkbox}
+              />
+              <span style={styles.checkboxText}>{activity.name}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      
+      {/* Time Spent */}
+      <div style={styles.formGroup}>
+        <label style={styles.formLabel}>⏱️ Time Spent (minutes)</label>
+        <input
+          type="number"
+          value={timeSpent}
+          onChange={(e) => setTimeSpent(e.target.value)}
+          style={styles.formInput}
+          placeholder="Enter time in minutes"
+          min="1"
+          max="300"
+          required
+        />
+      </div>
+      
+      {/* Challenges Faced (Multi-select) */}
+      <div style={styles.formGroup}>
+        <label style={styles.formLabel}>🎯 Challenges Faced</label>
+        <div style={styles.checkboxContainer}>
+          {challengeOptions.map(challenge => (
+            <label key={challenge} style={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={challenges.includes(challenge)}
+                onChange={() => toggleChallenge(challenge)}
+                style={styles.checkbox}
+              />
+              <span style={styles.checkboxText}>{challenge}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      
+      {/* Achievements */}
+      <div style={styles.formGroup}>
+        <label style={styles.formLabel}>🌟 Achievements</label>
+        <input
+          type="text"
+          value={achievements}
+          onChange={(e) => setAchievements(e.target.value)}
+          style={styles.formInput}
+          placeholder="What did they accomplish today?"
+        />
+      </div>
+      
+      {/* Notes/Observations Textarea */}
+      <div style={styles.formGroup}>
+        <label style={styles.formLabel}>📝 Notes & Observations</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          style={styles.textarea}
+          placeholder="Any additional observations or notes..."
+          rows="5"
+        />
+      </div>
+      
+      <button type="submit" style={styles.saveButton}>
+        Save Note
       </button>
+    </form>
+  </div>
+);
+}
+
+function ViewNotes({ profile, onBack }) {
+  const [notes, setNotes] = useState([]);
+  const [filteredNotes, setFilteredNotes] = useState([]);
+  const [filterMood, setFilterMood] = useState('all');
+  
+  useEffect(() => {
+    try {
+      const allNotes = JSON.parse(localStorage.getItem('parentNotes') || '[]');
+      const profileNotes = allNotes.filter(note => note.profileId === profile.id);
+      // Sort by date, newest first
+      profileNotes.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setNotes(profileNotes);
+      setFilteredNotes(profileNotes);
+    } catch (e) {
+      console.error('Failed to load notes:', e);
+    }
+  }, [profile.id]);
+  
+  useEffect(() => {
+    if (filterMood === 'all') {
+      setFilteredNotes(notes);
+    } else {
+      setFilteredNotes(notes.filter(note => note.mood === filterMood));
+    }
+  }, [filterMood, notes]);
+  
+  const handleDelete = (noteId) => {
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      try {
+        const allNotes = JSON.parse(localStorage.getItem('parentNotes') || '[]');
+        const updatedNotes = allNotes.filter(note => note.id !== noteId);
+        localStorage.setItem('parentNotes', JSON.stringify(updatedNotes));
+        
+        // Update local state
+        const updatedProfileNotes = notes.filter(note => note.id !== noteId);
+        setNotes(updatedProfileNotes);
+        setFilteredNotes(updatedProfileNotes.filter(note => 
+          filterMood === 'all' || note.mood === filterMood
+        ));
+      } catch (e) {
+        console.error('Failed to delete note:', e);
+        alert('Failed to delete note. Please try again.');
+      }
+    }
+  };
+  
+  const activityNames = {
+    counting: 'Counting Numbers',
+    tapCount: 'Tap to Count',
+    matchNumber: 'Match the Number',
+    missingNumber: 'Missing Number'
+  };
+  
+  return (
+    <div style={styles.fullScreenContainer}>
+      <button onClick={onBack} style={styles.backButton}>← Back</button>
+      
+      <h1 style={styles.pageTitle}>Notes for {profile.name}</h1>
+      
+      {notes.length > 0 && (
+        <div style={styles.filterContainer}>
+          <label style={styles.filterLabel}>Filter by mood:</label>
+          <div style={styles.moodFilterGrid}>
+            <button
+              onClick={() => setFilterMood('all')}
+              style={{
+                ...styles.filterButton,
+                backgroundColor: filterMood === 'all' ? '#FFB7B2' : '#F0F4F8'
+              }}
+            >
+              All
+            </button>
+            {['😊', '😐', '😢', '😠'].map(moodEmoji => (
+              <button
+                key={moodEmoji}
+                onClick={() => setFilterMood(moodEmoji)}
+                style={{
+                  ...styles.filterButton,
+                  backgroundColor: filterMood === moodEmoji ? '#FFB7B2' : '#F0F4F8'
+                }}
+              >
+                {moodEmoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      <div style={styles.notesListContainer}>
+        {filteredNotes.length === 0 ? (
+          <div style={styles.emptyState}>
+            <div style={styles.emptyStateIcon}>📝</div>
+            <p style={styles.emptyStateText}>
+              {notes.length === 0 
+                ? 'No notes yet. Add your first note!' 
+                : 'No notes match this filter.'}
+            </p>
+          </div>
+        ) : (
+          filteredNotes.map(note => (
+            <div key={note.id} style={styles.noteCard}>
+              <div style={styles.noteHeader}>
+                <div style={styles.noteDate}>
+                  📅 {new Date(note.date).toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </div>
+                <div style={styles.noteMood}>{note.mood}</div>
+              </div>
+              
+              <div style={styles.noteBody}>
+                <div style={styles.noteSection}>
+                  <span style={styles.noteSectionLabel}>⏱️ Time:</span>
+                  <span style={styles.noteSectionValue}>{note.timeSpent} minutes</span>
+                </div>
+                
+                <div style={styles.noteSection}>
+                  <span style={styles.noteSectionLabel}>✅ Activities:</span>
+                  <div style={styles.noteActivities}>
+                    {note.activitiesCompleted.map(actId => (
+                      <span key={actId} style={styles.activityBadge}>
+                        {activityNames[actId]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                {note.challenges.length > 0 && (
+                  <div style={styles.noteSection}>
+                    <span style={styles.noteSectionLabel}>🎯 Challenges:</span>
+                    <div style={styles.noteChallenges}>
+                      {note.challenges.map(challenge => (
+                        <span key={challenge} style={styles.challengeBadge}>
+                          {challenge}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {note.achievements && (
+                  <div style={styles.noteSection}>
+                    <span style={styles.noteSectionLabel}>🌟 Achievements:</span>
+                    <p style={styles.noteText}>{note.achievements}</p>
+                  </div>
+                )}
+                
+                {note.notes && (
+                  <div style={styles.noteSection}>
+                    <span style={styles.noteSectionLabel}>📝 Notes:</span>
+                    <p style={styles.noteText}>{note.notes}</p>
+                  </div>
+                )}
+              </div>
+              
+              <button 
+                onClick={() => handleDelete(note.id)} 
+                style={styles.deleteButton}
+              >
+                🗑️ Delete
+              </button>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -918,7 +1359,7 @@ const styles = {
     backgroundColor: '#FFFFFF',
     borderRadius: 'clamp(20px, 4vw, 25px)',
     padding: 'clamp(25px, 5vw, 40px)',
-    maxWidth: 'min(90vw, 500px)',
+    maxWidth: 'min(90vw, 600px)',
     width: '100%',
     boxShadow: '0 6px 25px rgba(0,0,0,0.1)',
   },
@@ -939,6 +1380,18 @@ const styles = {
     borderRadius: 'clamp(10px, 2vw, 12px)',
     border: '2px solid #C7CEEA',
     boxSizing: 'border-box',
+    fontFamily: "'Nunito', 'Comic Sans MS', sans-serif",
+  },
+  textarea: {
+    width: '100%',
+    fontSize: 'clamp(16px, 3.5vw, 18px)',
+    padding: 'clamp(12px, 2.5vh, 15px)',
+    borderRadius: 'clamp(10px, 2vw, 12px)',
+    border: '2px solid #C7CEEA',
+    boxSizing: 'border-box',
+    fontFamily: "'Nunito', 'Comic Sans MS', sans-serif",
+    resize: 'vertical',
+    minHeight: '100px',
   },
   avatarGrid: {
     display: 'grid',
@@ -953,6 +1406,47 @@ const styles = {
     borderRadius: 'clamp(12px, 2.5vw, 15px)',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
+  },
+  moodGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: 'clamp(10px, 2vw, 12px)',
+    marginTop: 'clamp(8px, 1.5vh, 10px)',
+  },
+  moodOption: {
+    fontSize: 'clamp(40px, 8vw, 50px)',
+    padding: 'clamp(15px, 3vh, 20px)',
+    border: 'none',
+    borderRadius: 'clamp(12px, 2.5vw, 15px)',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+  },
+  checkboxContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'clamp(10px, 2vh, 12px)',
+    marginTop: 'clamp(8px, 1.5vh, 10px)',
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: 'clamp(16px, 3.5vw, 18px)',
+    color: '#7B8FA1',
+    cursor: 'pointer',
+    padding: 'clamp(8px, 1.5vh, 10px)',
+    backgroundColor: '#F0F4F8',
+    borderRadius: 'clamp(8px, 1.5vw, 10px)',
+    transition: 'all 0.3s ease',
+  },
+  checkbox: {
+    width: 'clamp(18px, 4vw, 22px)',
+    height: 'clamp(18px, 4vw, 22px)',
+    marginRight: 'clamp(10px, 2vw, 12px)',
+    cursor: 'pointer',
+    accentColor: '#FFB7B2',
+  },
+  checkboxText: {
+    flex: 1,
   },
   saveButton: {
     width: '100%',
@@ -1027,6 +1521,13 @@ const styles = {
     color: '#FF9AA2',
     fontWeight: 'bold',
   },
+  dashboardButtonsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'clamp(12px, 2.5vh, 15px)',
+    width: '100%',
+    maxWidth: 'min(90vw, 500px)',
+  },
   startGameButton: {
     fontSize: 'clamp(20px, 4.5vw, 24px)',
     padding: 'clamp(15px, 3vh, 20px) clamp(35px, 7vw, 50px)',
@@ -1037,6 +1538,30 @@ const styles = {
     cursor: 'pointer',
     fontWeight: 'bold',
     boxShadow: '0 6px 20px rgba(255, 183, 178, 0.3)',
+    transition: 'all 0.3s ease',
+  },
+  parentNotesButton: {
+    fontSize: 'clamp(18px, 4vw, 20px)',
+    padding: 'clamp(12px, 2.5vh, 16px) clamp(30px, 6vw, 40px)',
+    backgroundColor: '#C7CEEA',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 'clamp(15px, 3vw, 20px)',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    boxShadow: '0 6px 20px rgba(199, 206, 234, 0.3)',
+    transition: 'all 0.3s ease',
+  },
+  viewNotesButton: {
+    fontSize: 'clamp(18px, 4vw, 20px)',
+    padding: 'clamp(12px, 2.5vh, 16px) clamp(30px, 6vw, 40px)',
+    backgroundColor: '#B5EAD7',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 'clamp(15px, 3vw, 20px)',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+    boxShadow: '0 6px 20px rgba(181, 234, 215, 0.3)',
     transition: 'all 0.3s ease',
   },
   gameGrid: {
@@ -1306,6 +1831,144 @@ const styles = {
     transition: 'all 0.3s ease',
     boxShadow: '0 6px 20px rgba(0,0,0,0.15)',
   },
+  // New styles for ViewNotes component
+  notesListContainer: {
+    width: '100%',
+    maxWidth: 'min(90vw, 800px)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'clamp(15px, 3vh, 20px)',
+  },
+  noteCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 'clamp(15px, 3vw, 20px)',
+    padding: 'clamp(20px, 4vw, 25px)',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+  },
+  noteHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 'clamp(15px, 3vh, 20px)',
+    paddingBottom: 'clamp(12px, 2.5vh, 15px)',
+    borderBottom: '2px solid #F0F4F8',
+  },
+  noteDate: {
+    fontSize: 'clamp(14px, 3vw, 16px)',
+    color: '#7B8FA1',
+    fontWeight: '600',
+  },
+  noteMood: {
+    fontSize: 'clamp(30px, 6vw, 36px)',
+  },
+  noteBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'clamp(12px, 2.5vh, 15px)',
+  },
+  noteSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'clamp(6px, 1vh, 8px)',
+  },
+  noteSectionLabel: {
+    fontSize: 'clamp(14px, 3vw, 16px)',
+    fontWeight: '600',
+    color: '#7B8FA1',
+  },
+  noteSectionValue: {
+    fontSize: 'clamp(14px, 3vw, 16px)',
+    color: '#FF9AA2',
+    fontWeight: 'bold',
+  },
+  noteActivities: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 'clamp(6px, 1.5vw, 8px)',
+  },
+  activityBadge: {
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
+    padding: 'clamp(4px, 1vh, 6px) clamp(8px, 2vw, 12px)',
+    backgroundColor: '#B5EAD7',
+    color: '#FFFFFF',
+    borderRadius: 'clamp(8px, 1.5vw, 10px)',
+    fontWeight: '600',
+  },
+  noteChallenges: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 'clamp(6px, 1.5vw, 8px)',
+  },
+  challengeBadge: {
+    fontSize: 'clamp(12px, 2.5vw, 14px)',
+    padding: 'clamp(4px, 1vh, 6px) clamp(8px, 2vw, 12px)',
+    backgroundColor: '#FFB7B2',
+    color: '#FFFFFF',
+    borderRadius: 'clamp(8px, 1.5vw, 10px)',
+    fontWeight: '600',
+  },
+  noteText: {
+    fontSize: 'clamp(14px, 3vw, 16px)',
+    color: '#7B8FA1',
+    lineHeight: '1.6',
+    margin: 0,
+  },
+  deleteButton: {
+    fontSize: 'clamp(14px, 3vw, 16px)',
+    padding: 'clamp(8px, 1.5vh, 10px) clamp(16px, 3vw, 20px)',
+    backgroundColor: '#FF9AA2',
+    color: '#FFFFFF',
+    border: 'none',
+    borderRadius: 'clamp(8px, 1.5vw, 10px)',
+    cursor: 'pointer',
+    fontWeight: '600',
+    marginTop: 'clamp(10px, 2vh, 12px)',
+    transition: 'all 0.3s ease',
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: 'clamp(40px, 8vh, 60px)',
+  },
+  emptyStateIcon: {
+    fontSize: 'clamp(60px, 12vw, 80px)',
+    marginBottom: 'clamp(15px, 3vh, 20px)',
+    opacity: 0.3,
+  },
+  emptyStateText: {
+    fontSize: 'clamp(16px, 3.5vw, 20px)',
+    color: '#7B8FA1',
+    lineHeight: '1.6',
+  },
+  filterContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 'clamp(15px, 3vw, 20px)',
+    padding: 'clamp(15px, 3vw, 20px)',
+    marginBottom: 'clamp(15px, 3vh, 20px)',
+    maxWidth: 'min(90vw, 800px)',
+    width: '100%',
+    boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+  },
+  filterLabel: {
+    fontSize: 'clamp(14px, 3vw, 16px)',
+    fontWeight: '600',
+    color: '#7B8FA1',
+    marginBottom: 'clamp(10px, 2vh, 12px)',
+    display: 'block',
+  },
+  moodFilterGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(5, 1fr)',
+    gap: 'clamp(8px, 2vw, 10px)',
+  },
+  filterButton: {
+    fontSize: 'clamp(16px, 3.5vw, 20px)',
+    padding: 'clamp(8px, 1.5vh, 10px)',
+    border: 'none',
+    borderRadius: 'clamp(8px, 1.5vw, 10px)',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    fontWeight: '600',
+  },
 };
 
 const styleSheet = document.createElement('style');
@@ -1338,6 +2001,11 @@ styleSheet.textContent = `
     button {
       min-height: 44px;
     }
+  }
+  
+  input[type="checkbox"]:hover,
+  label:has(input[type="checkbox"]):hover {
+    background-color: #E8F4F8;
   }
 `;
 document.head.appendChild(styleSheet);
